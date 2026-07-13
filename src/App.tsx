@@ -9,6 +9,7 @@ import { PlayerGrid } from './components/PlayerGrid';
 import { PlayerForm } from './components/PlayerForm';
 import { TechnicalPanel } from './components/TechnicalPanel';
 import { Toast } from './components/Toast';
+import { SiteFooter } from './components/SiteFooter';
 import './styles.css';
 
 type View = 'players' | 'technical';
@@ -122,7 +123,13 @@ export default function App() {
     }
   };
 
-  if (!auth) return <><OfflineBanner offline={offline} /><LoginScreen onLogin={login} loading={loading} error={error} /></>;
+  if (!auth) return (
+    <div className="login-shell">
+      <OfflineBanner offline={offline} />
+      <LoginScreen onLogin={login} loading={loading} error={error} />
+      <SiteFooter />
+    </div>
+  );
 
   return (
     <div className="app">
@@ -134,6 +141,7 @@ export default function App() {
       {!loading && view === 'players' && selectedPlayer && trainingSession && <PlayerForm player={selectedPlayer} players={players} measurements={measurements} session={trainingSession} saving={saving} onSave={saveMeasurement} onBack={() => setSelectedPlayer(null)} onNavigate={setSelectedPlayer} />}
       {!loading && view === 'technical' && <TechnicalPanel players={players} measurements={measurements} />}
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
+      <SiteFooter />
     </div>
   );
 }
