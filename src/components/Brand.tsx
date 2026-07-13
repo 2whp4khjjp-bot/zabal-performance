@@ -1,1 +1,15 @@
-m«ëˆ§½©buªàºg§¶ÊÜıÊ&¦‰ŞÛ?¶§vÛ1RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+import { appConfig } from '../config';
+
+type BrandProps = { compact?: boolean; light?: boolean };
+
+export function Brand({ compact = false, light = false }: BrandProps) {
+  return (
+    <div className={`brand ${compact ? 'brand--compact' : ''} ${light ? 'brand--light' : ''}`}>
+      <img className="brand__mark" src={appConfig.logoSrc} alt="Isotipo Zabal Performance" />
+      <div>
+        <div className="brand__name"><span>ZABAL</span> PERFORMANCE</div>
+        {!compact && <div className="brand__subtitle">Control preentrenamiento</div>}
+      </div>
+    </div>
+  );
+}

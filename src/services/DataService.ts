@@ -1,1 +1,16 @@
-m«ëˆ§½©buªàºg§¶ÊÜşÇ«¾'³ğÚµ¤®øœzÛ±¨m«ë€İ…¹îš(§~)^¢‹­~)^mºŞjFëy©ÊyÚ.¶›­º˜§¶‰bë(~W§‚Øgº`İuç(uç^r‡^Šzn¶^–—b²™ZÊØb²g¬±¨Š)éºØ§¦ë_ŠWyö®–×è®Ë]Šz(ºÚn¶‹­¦ë_ŠWyö®–×è®Ë]¢ë
+import type { AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+
+export interface DataService {
+  authenticate(pin: string): Promise<AuthSession>;
+  logout(token: string): Promise<void>;
+  getPlayers(token: string): Promise<Player[]>;
+  getMeasurements(token: string): Promise<Measurement[]>;
+  getCurrentSession(token: string): Promise<TrainingSession>;
+  saveMeasurement(token: string, input: MeasurementInput, overwrite: boolean): Promise<Measurement>;
+}
+
+export class DataServiceError extends Error {
+  constructor(message: string, public code = 'DATA_ERROR') {
+    super(message);
+  }
+}

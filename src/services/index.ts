@@ -1,1 +1,8 @@
-m«ëˆ§½©buªàºg§¶ÊÜşÇ«¾'³ø§uìm±KæÚ±î¸Ø[é¢Šwâ•ê(º×â•æÛ­æ¤n·š‘éÜ¡×¢ëiºÛ©Š{h–)Ş²‡åzx-†{¦×^r‡^uç(uè§¦ëa…éiv+)•¬­†+&zËè¢›­Šznµø¥y×Ÿjém~ŠìµØ§¢‹­¦ëhºÚnµø¥y×Ÿjém~ŠìµÚ.
+import { environment } from '../config';
+import type { DataService } from './DataService';
+import { GoogleSheetsDataService } from './GoogleSheetsDataService';
+import { LocalDataService } from './LocalDataService';
+
+export const dataService: DataService = environment.dataProvider === 'google-sheets'
+  ? new GoogleSheetsDataService(environment.appsScriptUrl)
+  : new LocalDataService();

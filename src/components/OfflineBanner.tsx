@@ -1,1 +1,11 @@
-m«ëˆ§½©buªàºg§¶ÊÜıÊ&¦‰ŞÛ?9÷åŠwjyŞ®Û1RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+import { WifiOff } from 'lucide-react';
+
+export function OfflineBanner({ offline }: { offline: boolean }) {
+  if (!offline) return null;
+  return (
+    <div className="offline-banner" role="status">
+      <WifiOff size={18} aria-hidden="true" />
+      Sin conexiÃ³n. Conservaremos el formulario en este dispositivo.
+    </div>
+  );
+}

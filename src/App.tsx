@@ -1,2 +1,139 @@
-m«ëˆ§½©buªàºg§¶ÊÜü
-i¶ÌT±¨m«ë€İ…¹îš(§~)^¢‹­~)^mºŞjFëy©ÊyÚ.¶›­º˜§¶‰bë(~W§‚Øgº`İuç(uç^r‡^Šzn¶^–—b²™ZÊØb²g¬±¨Š)éºØ§¦ë_ŠWyö®–×è®Ë]Šz(ºÚn¶‹­¦ë_ŠWyö®–×è®Ë]¢ë
+import { useEffect, useState } from 'react';
+import type { AuthSession, DashboardFilter, Measurement, MeasurementInput, Player, TrainingSession } from './types';
+import { dataService } from './services';
+import { clearAuthSession, readAuthSession, remainingSeconds, saveAuthSession } from './utils/session';
+import { AppHeader } from './components/AppHeader';
+import { LoginScreen } from './components/LoginScreen';
+import { OfflineBanner } from './components/OfflineBanner';
+import { PlayerGrid } from './components/PlayerGrid';
+import { PlayerForm } from './components/PlayerForm';
+import { TechnicalPanel } from './components/TechnicalPanel';
+import { Toast } from './components/Toast';
+import './styles.css';
+
+type View = 'players' | 'technical';
+
+export default function App() {
+  const [auth, setAuth] = useState<AuthSession | null>(() => readAuthSession());
+  const [remaining, setRemaining] = useState(() => auth ? remainingSeconds(auth.expiresAt) : 0);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [trainingSession, setTrainingSession] = useState<TrainingSession | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [view, setView] = useState<View>('players');
+  const [filter, setFilter] = useState<DashboardFilter>('all');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const [offline, setOffline] = useState(!navigator.onLine);
+
+  const logout = async () => {
+    if (auth) void dataService.logout(auth.token).catch(() => undefined);
+    clearAuthSession();
+    setAuth(null);
+    setPlayers([]);
+    setMeasurements([]);
+    setTrainingSession(null);
+    setSelectedPlayer(null);
+    setView('players');
+    setRemaining(0);
+  };
+
+  useEffect(() => {
+    const online = () => setOffline(false);
+    const offlineHandler = () => setOffline(true);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offlineHandler);
+    return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offlineHandler); };
+  }, []);
+
+  useEffect(() => {
+    if (!auth) return;
+    const update = () => {
+      const seconds = remainingSeconds(auth.expiresAt);
+      setRemaining(seconds);
+      if (seconds <= 0) void logout();
+    };
+    update();
+    const interval = window.setInterval(update, 1000);
+    return () => window.clearInterval(interval);
+  }, [auth?.expiresAt]);
+
+  useEffect(() => {
+    if (!auth) return;
+    setLoading(true);
+    Promise.all([
+      dataService.getPlayers(auth.token),
+      dataService.getMeasurements(auth.token),
+      dataService.getCurrentSession(auth.token),
+    ]).then(([nextPlayers, nextMeasurements, nextSession]) => {
+      setPlayers(nextPlayers);
+      setMeasurements(nextMeasurements);
+      setTrainingSession(nextSession);
+    }).catch((cause: Error) => {
+      setError(cause.message || 'No se pudieron cargar los datos.');
+      if (/sesiÃ³n|session|unauthorized/i.test(cause.message)) void logout();
+    }).finally(() => setLoading(false));
+  }, [auth?.token]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(''), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const login = async (pin: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const session = await dataService.authenticate(pin);
+      saveAuthSession(session);
+      setAuth(session);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo iniciar sesiÃ³n.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveMeasurement = async (input: MeasurementInput, overwrite: boolean) => {
+    if (!auth) return false;
+    setSaving(true);
+    setError('');
+    try {
+      const saved = await dataService.saveMeasurement(auth.token, input, overwrite);
+      setMeasurements((current) => {
+        const index = current.findIndex((item) => item.id === saved.id);
+        if (index < 0) return [...current, saved];
+        const next = [...current];
+        next[index] = saved;
+        return next;
+      });
+      setToast(overwrite ? 'MediciÃ³n actualizada correctamente' : 'MediciÃ³n guardada correctamente');
+      window.setTimeout(() => { setSelectedPlayer(null); setView('players'); }, 850);
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar la mediciÃ³n.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!auth) return <><OfflineBanner offline={offline} /><LoginScreen onLogin={login} loading={loading} error={error} /></>;
+
+  return (
+    <div className="app">
+      <OfflineBanner offline={offline} />
+      <AppHeader remaining={remaining} view={view} onViewChange={(next) => { setView(next); setSelectedPlayer(null); }} onLogout={() => void logout()} />
+      {error && <div className="global-error" role="alert"><span>{error}</span><button onClick={() => setError('')}>Cerrar</button></div>}
+      {loading && !players.length ? <div className="loading-screen"><span className="loader" /><p>Preparando la sesiÃ³nâ€¦</p></div> : null}
+      {!loading && view === 'players' && !selectedPlayer && <PlayerGrid players={players} measurements={measurements} onSelect={setSelectedPlayer} filter={filter} onFilterChange={setFilter} query={query} onQueryChange={setQuery} />}
+      {!loading && view === 'players' && selectedPlayer && trainingSession && <PlayerForm player={selectedPlayer} players={players} measurements={measurements} session={trainingSession} saving={saving} onSave={saveMeasurement} onBack={() => setSelectedPlayer(null)} onNavigate={setSelectedPlayer} />}
+      {!loading && view === 'technical' && <TechnicalPanel players={players} measurements={measurements} />}
+      {toast && <Toast message={toast} onClose={() => setToast('')} />}
+    </div>
+  );
+}

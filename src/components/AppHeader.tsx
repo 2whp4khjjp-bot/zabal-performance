@@ -1,1 +1,34 @@
-m´ÎàßΩ©bu™‡∫gß∂ ‹˝ &¶âﬁû€?öGyß^Æ€1R∆†y∂¨{ÆvÁ∫h¢ù¯•zä.µ¯•y∂Îy©≠Ê§zw(uÁh∫⁄n∂Íbû⁄%äw¨°˘^ûaûÈÉu◊ú°◊ùy z)È∫ÿazZ]ä ek+aä…û≤∆†z(ß¶Îbûõ≠~)^uÁ⁄∫[_¢ª-v)Ë¢Îi∫⁄.∂õ≠~)^uÁ⁄∫[_¢ª-vã≠
+import { BarChart3, Clock3, LogOut, Users } from 'lucide-react';
+import { appConfig } from '../config';
+import { formatRemaining } from '../utils/session';
+import { Brand } from './Brand';
+
+type HeaderProps = {
+  remaining: number;
+  view: 'players' | 'technical';
+  onViewChange: (view: 'players' | 'technical') => void;
+  onLogout: () => void;
+};
+
+export function AppHeader({ remaining, view, onViewChange, onLogout }: HeaderProps) {
+  return (
+    <header className="app-header">
+      <Brand compact light />
+      <nav className="main-nav" aria-label="Navegaci√≥n principal">
+        <button className={view === 'players' ? 'active' : ''} onClick={() => onViewChange('players')}>
+          <Users size={18} /> Jugadores
+        </button>
+        <button className={view === 'technical' ? 'active' : ''} onClick={() => onViewChange('technical')}>
+          <BarChart3 size={18} /> Panel t√©cnico
+        </button>
+      </nav>
+      <div className="header-meta">
+        <div className={`session-timer ${remaining < 300 ? 'session-timer--low' : ''}`} title="Tiempo restante de sesi√≥n">
+          <Clock3 size={17} /> <span>{formatRemaining(remaining)}</span>
+        </div>
+        <div className="season-label"><span>{appConfig.teamName}</span><strong>{appConfig.season}</strong></div>
+        <button className="logout-button" onClick={onLogout}><LogOut size={18} /><span>Cerrar sesi√≥n</span></button>
+      </div>
+    </header>
+  );
+}

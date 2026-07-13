@@ -1,1 +1,5 @@
-m«ëˆ§½©buªàºg§¶ø­zË\¢wâ‚Û±¨m«ë€İ…¹îš(§~)^¢‹­~)^mºŞjFëy©ÊyÚ.¶›­º˜§¶‰bë(~W§‚Øgº`İuç(uç^r‡^Šzn¶^–—b²™ZÊØb²g¬±¨Š)éºØ§¦ë_ŠWyö®–×è®Ë]Šz(ºÚn¶‹­¦ë_ŠWyö®–×è®Ë]¢ë
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: { environment: 'jsdom', globals: true },
+});

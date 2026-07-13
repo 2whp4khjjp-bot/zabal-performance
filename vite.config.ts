@@ -1,1 +1,26 @@
-m«ëˆ§½©buªàºg§¶ø­yÊ'~(-±KæÚ±î¸Ø[žé¢Šwâ•ê(º×â•æÛ­æ¤n·š‘éÜ¡×¢ëiºÛ©Š{h–)Þ²‡åzx-†{¦×^r‡^uç(uè§¦ëa…éiv+)•¬­†+&zËè¢ž›­Šznµø¥y×Ÿjém~ŠìµØ§¢‹­¦ëhºÚnµø¥y×Ÿjém~ŠìµÚ.
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', '');
+  const base = env.VITE_BASE_PATH || '/';
+
+  return {
+    base,
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.svg', 'assets/logo-placeholder.svg'],
+        manifest: false,
+        workbox: {
+          navigateFallback: `${base}index.html`,
+          globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        },
+      }),
+    ],
+    server: { port: 4173 },
+    preview: { port: 4173 },
+  };
+});

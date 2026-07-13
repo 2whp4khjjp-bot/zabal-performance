@@ -1,1 +1,84 @@
-m´ÎàßΩ©bu™‡∫gßµ⁄≥ƒHÚ»eÑ«PùR∆†y∂¨{ÆvÁ∫h¢ù¯•zä.µ¯•y∂Îy©≠Ê§zw(uÁh∫⁄n∂Íbû⁄%äw¨°˘^ûaûÈÉu◊ú°◊ùy z)È∫ÿazZ]ä ek+aä…û≤∆†z(ß¶Îbûõ≠~)^uÁ⁄∫[_¢ª-v)Ë¢Îi∫⁄.∂õ≠~)^uÁ⁄∫[_¢ª-vã≠
+# Publicaci√≥n remota con GitHub Pages
+
+Esta es la configuraci√≥n recomendada para que todo el cuerpo t√©cnico acceda a la misma aplicaci√≥n desde cualquier ubicaci√≥n.
+
+## Arquitectura de producci√≥n
+
+```text
+M√≥vil, tablet u ordenador
+        ‚Üì HTTPS
+GitHub Pages ¬∑ interfaz React/PWA
+        ‚Üì HTTPS + token temporal
+Google Apps Script ¬∑ validaci√≥n y API
+        ‚Üì acceso privado del propietario
+Google Sheets ¬∑ jugadores, sesiones y mediciones
+```
+
+GitHub no almacena las mediciones. Solo sirve los archivos p√∫blicos de la interfaz. La hoja sigue siendo privada y Apps Script act√∫a como puerta de entrada.
+
+## 1. Preparar Google Sheets
+
+Siga el apartado **Conectar Google Sheets** del `README.md`. Al terminar debe tener una URL de Apps Script parecida a:
+
+```text
+https://script.google.com/macros/s/IDENTIFICADOR/exec
+```
+
+Compruebe que el PIN definitivo est√° configurado y que la implementaci√≥n se ejecuta con la cuenta propietaria de la hoja.
+
+## 2. Crear el repositorio
+
+1. Cree un repositorio en la cuenta u organizaci√≥n del club.
+2. Suba este proyecto sin el archivo `.env`.
+3. La rama principal debe llamarse `main`.
+
+La web publicada ser√° accesible p√∫blicamente, pero el contenido funcional permanece protegido por el PIN y los tokens temporales. No suba hojas, exportaciones, PIN, datos de jugadores reales ni credenciales al repositorio.
+
+## 3. Configurar las variables de GitHub
+
+Abra **Settings > Secrets and variables > Actions > Variables** y cree:
+
+| Variable | Valor |
+| --- | --- |
+| `VITE_APPS_SCRIPT_URL` | URL `/exec` de Apps Script |
+| `VITE_PUBLIC_URL` | `https://control.atleticozabal.com` |
+| `VITE_BASE_PATH` | `/` para el dominio definitivo |
+
+La URL de Apps Script no es una clave privada: la seguridad depende del PIN validado en el servidor y del token temporal. Aun as√≠, mantenerla como variable permite cambiarla sin modificar el c√≥digo.
+
+Para probar primero con `https://USUARIO.github.io/NOMBRE-REPOSITORIO/`, use `/NOMBRE-REPOSITORIO/` en `VITE_BASE_PATH`. Antes de activar el subdominio, vuelva a establecerla en `/` y ejecute otra publicaci√≥n.
+
+## 4. Activar Pages
+
+1. Abra **Settings > Pages**.
+2. En **Source**, seleccione **GitHub Actions**.
+3. Abra la pesta√±a **Actions** y ejecute `Publicar Zabal Performance`, o env√≠e un cambio a `main`.
+4. El proceso ejecutar√° las pruebas, compilar√° la aplicaci√≥n obligatoriamente con `google-sheets` y publicar√° `dist`.
+
+El flujo se detiene si falta `VITE_APPS_SCRIPT_URL`; de esta forma, la versi√≥n p√∫blica no puede desplegarse accidentalmente en modo local.
+
+## 5. Conectar el subdominio
+
+En **Settings > Pages > Custom domain**, introduzca:
+
+```text
+control.atleticozabal.com
+```
+
+En el proveedor DNS de `atleticozabal.com`, cree:
+
+| Tipo | Nombre | Destino |
+| --- | --- | --- |
+| `CNAME` | `rendimiento` | `USUARIO-O-ORGANIZACION.github.io` |
+
+El destino no debe incluir el nombre del repositorio. Cuando GitHub valide el DNS, active **Enforce HTTPS**.
+
+## 6. Acceso del cuerpo t√©cnico
+
+Cada t√©cnico podr√° abrir `https://control.atleticozabal.com` desde cualquier dispositivo e introducir el mismo PIN. Todos ver√°n la misma plantilla y las mismas mediciones porque los datos se consultan en Google Sheets, no en el almacenamiento del dispositivo.
+
+La sesi√≥n de cada dispositivo caduca a los 30 minutos. El PIN no se almacena en el navegador.
+
+## Actualizaciones
+
+Cada cambio enviado a `main` vuelve a ejecutar pruebas y publica una nueva versi√≥n. La PWA detecta la actualizaci√≥n y renueva la interfaz instalada.

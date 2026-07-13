@@ -1,1 +1,11 @@
-m«ëˆ§½©buªàºg§¶ÊÜþf¢žÛ1RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbžÚ%Šw¬¡ù^žažéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉž²Æ z(§¦ëbž›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`));
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode><App /></StrictMode>,
+);
