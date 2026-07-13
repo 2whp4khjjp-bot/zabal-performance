@@ -41,7 +41,7 @@ Abra **Settings > Secrets and variables > Actions > Variables** y cree:
 | Variable | Valor |
 | --- | --- |
 | `VITE_APPS_SCRIPT_URL` | URL `/exec` de Apps Script |
-| `VITE_PUBLIC_URL` | `https://control.atleticozabal.com` |
+| `VITE_PUBLIC_URL` | `https://rendimiento.atleticozabal.com` |
 | `VITE_BASE_PATH` | `/` para el dominio definitivo |
 
 La URL de Apps Script no es una clave privada: la seguridad depende del PIN validado en el servidor y del token temporal. Aun así, mantenerla como variable permite cambiarla sin modificar el código.
@@ -62,7 +62,7 @@ El flujo se detiene si falta `VITE_APPS_SCRIPT_URL`; de esta forma, la versión 
 En **Settings > Pages > Custom domain**, introduzca:
 
 ```text
-control.atleticozabal.com
+rendimiento.atleticozabal.com
 ```
 
 En el proveedor DNS de `atleticozabal.com`, cree:
@@ -75,7 +75,7 @@ El destino no debe incluir el nombre del repositorio. Cuando GitHub valide el DN
 
 ## 6. Acceso del cuerpo técnico
 
-Cada técnico podrá abrir `https://control.atleticozabal.com` desde cualquier dispositivo e introducir el mismo PIN. Todos verán la misma plantilla y las mismas mediciones porque los datos se consultan en Google Sheets, no en el almacenamiento del dispositivo.
+Cada técnico podrá abrir `https://rendimiento.atleticozabal.com` desde cualquier dispositivo e introducir el mismo PIN. Todos verán la misma plantilla y las mismas mediciones porque los datos se consultan en Google Sheets, no en el almacenamiento del dispositivo.
 
 La sesión de cada dispositivo caduca a los 30 minutos. El PIN no se almacena en el navegador.
 

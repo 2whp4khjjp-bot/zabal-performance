@@ -55,8 +55,8 @@ jobs:
         env:
           VITE_DATA_PROVIDER: google-sheets
           VITE_APPS_SCRIPT_URL: ${{ vars.VITE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxd14RX1ewTQtsSaK01aZzJI9KHJ5MpiYwAwjxe4jsiX7EuY1c7jZNUmxVYUQF6C7GLBA/exec' }}
-          VITE_PUBLIC_URL: ${{ vars.VITE_PUBLIC_URL || 'https://control.atleticozabal.com/' }}
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/' }}
+          VITE_PUBLIC_URL: ${{ vars.VITE_PUBLIC_URL || 'https://2whp4khjjp-bot.github.io/zabal-performance/' }}
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/zabal-performance/' }}
         run: pnpm build
 
       - name: Preparar archivos de publicación

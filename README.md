@@ -92,7 +92,7 @@ node -e "console.log(require('node:crypto').createHash('sha256').update('TU_PIN'
 ```env
 VITE_DATA_PROVIDER=google-sheets
 VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/ID_DEL_DESPLIEGUE/exec
-VITE_PUBLIC_URL=https://control.atleticozabal.com
+VITE_PUBLIC_URL=https://rendimiento.atleticozabal.com
 ```
 
 11. Compile y despliegue de nuevo la web.
@@ -127,7 +127,7 @@ Como alternativas también puede utilizar Cloudflare Pages, Netlify o Vercel. En
 2. Use `pnpm build` como comando de compilación y `dist` como carpeta de salida.
 3. Añada las variables de `.env` en la configuración segura del proveedor.
 4. Configure las rutas SPA para que cualquier ruta devuelva `index.html` (la PWA ya usa esa navegación).
-5. Añada el dominio personalizado `control.atleticozabal.com`.
+5. Añada el dominio personalizado `rendimiento.atleticozabal.com`.
 
 El proveedor mostrará el registro DNS exacto. Habitualmente será:
 
