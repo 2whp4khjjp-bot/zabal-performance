@@ -1,6 +1,6 @@
 import { appConfig, environment } from '../config';
 import { createDemoMeasurements, createTodaySession, demoPlayers } from '../data/demo';
-import type { AuthRole, AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import type { AuthRole, AuthSession, MatchInput, MatchRecord, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 import { todayKey } from '../utils/date';
 import { sanitizeComment } from '../utils/measurements';
 import type { DataService } from './DataService';
@@ -8,6 +8,7 @@ import { DataServiceError } from './DataService';
 
 const MEASUREMENTS_KEY = 'zabal-demo-measurements-v1';
 const PLAYERS_KEY = 'zabal-demo-players-v1';
+const MATCHES_KEY = 'zabal-demo-matches-v1';
 
 const sha256 = async (value: string) => {
   const bytes = new TextEncoder().encode(value);
@@ -117,5 +118,44 @@ export class LocalDataService implements DataService {
     else items.push(measurement);
     localStorage.setItem(MEASUREMENTS_KEY, JSON.stringify(items));
     return measurement;
+  }
+
+  async getMatches(token: string): Promise<MatchRecord[]> {
+    const auth = this.requireSession(token);
+    if (auth.role !== 'staff') throw new DataServiceError('Solo el cuerpo técnico puede consultar los partidos.', 'FORBIDDEN');
+    return readJson<MatchRecord[]>(MATCHES_KEY, []).sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
+  }
+
+  async saveMatch(token: string, input: MatchInput): Promise<MatchRecord> {
+    const auth = this.requireSession(token);
+    if (auth.role !== 'staff') throw new DataServiceError('Solo el cuerpo técnico puede guardar partidos.', 'FORBIDDEN');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new DataServiceError('La fecha del partido no es válida.', 'VALIDATION');
+    if (!['official', 'friendly'].includes(input.type)) throw new DataServiceError('El tipo de partido no es válido.', 'VALIDATION');
+    const opponent = input.opponent.replace(/[<>]/g, '').trim().slice(0, 100);
+    if (!opponent) throw new DataServiceError('Introduce el rival.', 'VALIDATION');
+    if (!Number.isInteger(input.durationMinutes) || input.durationMinutes < 1 || input.durationMinutes > 180) {
+      throw new DataServiceError('La duración del partido no es válida.', 'VALIDATION');
+    }
+    const players = readJson(PLAYERS_KEY, demoPlayers);
+    const seen = new Set<string>();
+    const minutes = input.minutes.map((entry) => {
+      const player = players.find((item) => item.id === entry.playerId && item.active);
+      if (!player || player.name !== entry.playerName || seen.has(entry.playerId)) throw new DataServiceError('Hay un jugador no válido o repetido.', 'INVALID_PLAYER');
+      if (!Number.isInteger(entry.minutes) || entry.minutes < 0 || entry.minutes > input.durationMinutes) {
+        throw new DataServiceError(`Los minutos de ${entry.playerName} no son válidos.`, 'VALIDATION');
+      }
+      seen.add(entry.playerId);
+      return { playerId: player.id, playerName: player.name, minutes: entry.minutes };
+    });
+    if (!minutes.length) throw new DataServiceError('Introduce los minutos de al menos un jugador.', 'VALIDATION');
+    const now = new Date().toISOString();
+    const match: MatchRecord = {
+      id: crypto.randomUUID(), date: input.date, type: input.type, opponent,
+      durationMinutes: input.durationMinutes, minutes, createdAt: now, updatedAt: now, createdBy: 'cuerpo-tecnico',
+    };
+    const matches = readJson<MatchRecord[]>(MATCHES_KEY, []);
+    matches.push(match);
+    localStorage.setItem(MATCHES_KEY, JSON.stringify(matches));
+    return match;
   }
 }

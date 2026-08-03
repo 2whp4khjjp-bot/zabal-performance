@@ -1,4 +1,4 @@
-import { BarChart3, Clock3, LogOut, Users } from 'lucide-react';
+import { BarChart3, Clock3, LogOut, ShieldCheck, Trophy, Users } from 'lucide-react';
 import { appConfig } from '../config';
 import type { AuthRole } from '../types';
 import { formatRemaining } from '../utils/session';
@@ -6,8 +6,8 @@ import { Brand } from './Brand';
 
 type HeaderProps = {
   remaining: number;
-  view: 'players' | 'technical';
-  onViewChange: (view: 'players' | 'technical') => void;
+  view: 'players' | 'matches' | 'technical';
+  onViewChange: (view: 'players' | 'matches' | 'technical') => void;
   onLogout: () => void;
   role: AuthRole;
   playerName?: string;
@@ -18,13 +18,16 @@ export function AppHeader({ remaining, view, onViewChange, onLogout, role, playe
     <header className="app-header">
       <Brand compact light />
       {role === 'staff' ? <nav className="main-nav" aria-label="Navegación principal">
-        <button className={view === 'players' ? 'active' : ''} onClick={() => onViewChange('players')}>
-          <Users size={18} /> Jugadores
+        <button aria-label="Jugadores" className={view === 'players' ? 'active' : ''} onClick={() => onViewChange('players')}>
+          <Users size={18} /> <span>Jugadores</span>
         </button>
-        <button className={view === 'technical' ? 'active' : ''} onClick={() => onViewChange('technical')}>
-          <BarChart3 size={18} /> Panel técnico
+        <button aria-label="Partidos" className={view === 'matches' ? 'active' : ''} onClick={() => onViewChange('matches')}>
+          <Trophy size={18} /> <span>Partidos</span>
         </button>
-      </nav> : <div className="player-session-name">{playerName}</div>}
+        <button aria-label="Informes" className={view === 'technical' ? 'active' : ''} onClick={() => onViewChange('technical')}>
+          <BarChart3 size={18} /> <span>Panel técnico</span>
+        </button>
+      </nav> : <div className="player-session-name"><ShieldCheck size={17} /> {playerName}</div>}
       <div className="header-meta">
         <div className={`session-timer ${remaining < 300 ? 'session-timer--low' : ''}`} title="Tiempo restante de sesión">
           <Clock3 size={17} /> <span>{formatRemaining(remaining)}</span>

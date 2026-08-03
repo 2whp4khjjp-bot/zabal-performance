@@ -29,4 +29,18 @@ describe('servicio local', () => {
     expect(players).toHaveLength(1);
     expect(measurements.every((item) => item.playerId === players[0].id)).toBe(true);
   });
+  it('guarda minutos de partido solo para el cuerpo técnico', async () => {
+    const service = new LocalDataService();
+    const staff = await service.authenticate('2026', 'staff');
+    const players = await service.getPlayers(staff.token);
+    const saved = await service.saveMatch(staff.token, {
+      date: '2026-08-09', type: 'official', opponent: 'UD Los Barrios', durationMinutes: 90,
+      minutes: [{ playerId: players[0].id, playerName: players[0].name, minutes: 74 }],
+    });
+    expect(saved.durationMinutes).toBe(90);
+    expect((await service.getMatches(staff.token))[0].minutes[0].minutes).toBe(74);
+
+    const player = await service.authenticate('1001', 'player');
+    await expect(service.getMatches(player.token)).rejects.toThrow('cuerpo técnico');
+  });
 });

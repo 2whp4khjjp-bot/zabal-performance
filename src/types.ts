@@ -73,3 +73,31 @@ export type MeasurementInput = {
 };
 
 export type ReportKind = 'daily' | 'weekly' | 'player' | 'alerts';
+
+export type MatchType = 'official' | 'friendly';
+
+export type MatchMinutes = {
+  playerId: string;
+  playerName: string;
+  minutes: number;
+};
+
+export type MatchRecord = {
+  id: string;
+  date: string;
+  type: MatchType;
+  opponent: string;
+  durationMinutes: number;
+  minutes: MatchMinutes[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+};
+
+export type MatchInput = {
+  date: string;
+  type: MatchType;
+  opponent: string;
+  durationMinutes: number;
+  minutes: MatchMinutes[];
+};

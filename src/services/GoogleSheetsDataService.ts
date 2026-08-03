@@ -1,4 +1,4 @@
-import type { AuthRole, AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import type { AuthRole, AuthSession, MatchInput, MatchRecord, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 import type { DataService } from './DataService';
 import { DataServiceError } from './DataService';
 
@@ -51,5 +51,13 @@ export class GoogleSheetsDataService implements DataService {
 
   saveMeasurement(token: string, input: MeasurementInput) {
     return this.request<Measurement>('saveMeasurement', { token, measurement: input });
+  }
+
+  getMatches(token: string) {
+    return this.request<MatchRecord[]>('getMatches', { token });
+  }
+
+  saveMatch(token: string, input: MatchInput) {
+    return this.request<MatchRecord>('saveMatch', { token, match: input });
   }
 }

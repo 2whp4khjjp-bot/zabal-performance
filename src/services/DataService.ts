@@ -1,4 +1,4 @@
-import type { AuthRole, AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import type { AuthRole, AuthSession, MatchInput, MatchRecord, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 
 export interface DataService {
   authenticate(pin: string, role: AuthRole): Promise<AuthSession>;
@@ -7,6 +7,8 @@ export interface DataService {
   getMeasurements(token: string): Promise<Measurement[]>;
   getCurrentSession(token: string): Promise<TrainingSession>;
   saveMeasurement(token: string, input: MeasurementInput): Promise<Measurement>;
+  getMatches(token: string): Promise<MatchRecord[]>;
+  saveMatch(token: string, input: MatchInput): Promise<MatchRecord>;
 }
 
 export class DataServiceError extends Error {
