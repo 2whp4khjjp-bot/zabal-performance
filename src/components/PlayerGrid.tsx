@@ -15,6 +15,7 @@ type PlayerGridProps = {
 
 const statusIcon = {
   pending: CircleDashed,
+  partial: CircleDashed,
   normal: CheckCircle2,
   moderate: AlertTriangle,
   alert: ShieldAlert,
@@ -80,7 +81,7 @@ export function PlayerGrid({ players, measurements, onSelect, filter, onFilterCh
                   <strong>{player.name}</strong>
                   <span className="player-card__status"><Icon size={17} /> {alertLabel[level]}</span>
                 </span>
-                {measurement && <span className="player-card__values">F {measurement.fatigue} · M {measurement.soreness}</span>}
+                {measurement && <span className="player-card__values">F {measurement.fatigue ?? '—'} · M {measurement.soreness ?? '—'}</span>}
               </button>
             );
           })}

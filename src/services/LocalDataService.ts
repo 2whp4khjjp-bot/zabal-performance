@@ -1,6 +1,6 @@
 import { appConfig, environment } from '../config';
 import { createDemoMeasurements, createTodaySession, demoPlayers } from '../data/demo';
-import type { AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import type { AuthRole, AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 import { todayKey } from '../utils/date';
 import { sanitizeComment } from '../utils/measurements';
 import type { DataService } from './DataService';
@@ -26,53 +26,74 @@ const readJson = <T>(key: string, fallback: T): T => {
   return fallback;
 };
 
-const requireToken = (token: string) => {
-  if (!token.startsWith('local-')) throw new DataServiceError('La sesión ya no es válida.', 'UNAUTHORIZED');
-};
-
 export class LocalDataService implements DataService {
-  async authenticate(pin: string): Promise<AuthSession> {
-    const inputHash = await sha256(pin);
-    if (inputHash !== environment.staffPinHash) {
-      throw new DataServiceError('El PIN no es correcto. Inténtalo de nuevo.', 'INVALID_PIN');
-    }
-    return {
-      token: `local-${crypto.randomUUID()}`,
-      expiresAt: Date.now() + appConfig.sessionDurationMinutes * 60 * 1000,
-    };
+  private sessions = new Map<string, AuthSession>();
+
+  private requireSession(token: string) {
+    const session = this.sessions.get(token);
+    if (!session || session.expiresAt <= Date.now()) throw new DataServiceError('La sesión ya no es válida.', 'UNAUTHORIZED');
+    return session;
   }
 
-  async logout(): Promise<void> {}
+  async authenticate(pin: string, role: AuthRole): Promise<AuthSession> {
+    let player: Player | undefined;
+    if (role === 'staff') {
+      const inputHash = await sha256(pin);
+      if (inputHash !== environment.staffPinHash) throw new DataServiceError('El PIN del cuerpo técnico no es correcto.', 'INVALID_PIN');
+    } else {
+      const players = readJson(PLAYERS_KEY, demoPlayers).filter((item) => item.active).sort((a, b) => a.order - b.order);
+      const playerIndex = Number(pin) - 1001;
+      player = /^\d{4}$/.test(pin) ? players[playerIndex] : undefined;
+      if (!player) throw new DataServiceError('El PIN de jugador no es correcto.', 'INVALID_PIN');
+    }
+    const session: AuthSession = {
+      token: `local-${crypto.randomUUID()}`,
+      expiresAt: Date.now() + appConfig.sessionDurationMinutes * 60 * 1000,
+      role,
+      playerId: player?.id,
+      playerName: player?.name,
+    };
+    this.sessions.set(session.token, session);
+    return session;
+  }
+
+  async logout(token: string): Promise<void> { this.sessions.delete(token); }
 
   async getPlayers(token: string): Promise<Player[]> {
-    requireToken(token);
-    return readJson(PLAYERS_KEY, demoPlayers).filter((player) => player.active).sort((a, b) => a.order - b.order);
+    const session = this.requireSession(token);
+    const players = readJson(PLAYERS_KEY, demoPlayers).filter((player) => player.active).sort((a, b) => a.order - b.order);
+    return session.role === 'player' ? players.filter((player) => player.id === session.playerId) : players;
   }
 
   async getMeasurements(token: string): Promise<Measurement[]> {
-    requireToken(token);
-    return readJson(MEASUREMENTS_KEY, createDemoMeasurements());
+    const session = this.requireSession(token);
+    const measurements = readJson(MEASUREMENTS_KEY, createDemoMeasurements());
+    return session.role === 'player' ? measurements.filter((item) => item.playerId === session.playerId) : measurements;
   }
 
   async getCurrentSession(token: string): Promise<TrainingSession> {
-    requireToken(token);
+    this.requireSession(token);
     return createTodaySession();
   }
 
-  async saveMeasurement(token: string, input: MeasurementInput, overwrite: boolean): Promise<Measurement> {
-    requireToken(token);
-    const players = await this.getPlayers(token);
+  async saveMeasurement(token: string, input: MeasurementInput): Promise<Measurement> {
+    const auth = this.requireSession(token);
+    if (auth.role === 'player' && auth.playerId !== input.playerId) throw new DataServiceError('No puedes guardar datos de otro jugador.', 'FORBIDDEN');
+    const players = readJson(PLAYERS_KEY, demoPlayers);
     const player = players.find((item) => item.id === input.playerId);
     if (!player || player.name !== input.playerName) throw new DataServiceError('Jugador no válido.', 'INVALID_PLAYER');
-    if (input.weight < 30 || input.weight > 250) throw new DataServiceError('El peso no es válido.', 'VALIDATION');
-    if (![input.fatigue, input.soreness].every((value) => Number.isInteger(value) && value >= 1 && value <= 10)) {
+    if (input.weight !== undefined && (input.weight < 30 || input.weight > 250)) throw new DataServiceError('El peso no es válido.', 'VALIDATION');
+    const scores = [input.fatigue, input.soreness].filter((value): value is number => value !== undefined);
+    if (!scores.every((value) => Number.isInteger(value) && value >= 1 && value <= 10)) {
       throw new DataServiceError('Los valores deben estar entre 1 y 10.', 'VALIDATION');
     }
+    if (input.weight === undefined && input.fatigue === undefined && input.soreness === undefined && !input.comments.trim()) {
+      throw new DataServiceError('Rellena al menos un dato antes de guardar.', 'VALIDATION');
+    }
 
-    const items = await this.getMeasurements(token);
+    const items = readJson(MEASUREMENTS_KEY, createDemoMeasurements());
     const date = todayKey();
     const existingIndex = items.findIndex((item) => item.playerId === input.playerId && item.date === date);
-    if (existingIndex >= 0 && !overwrite) throw new DataServiceError('Ya existe una medición de hoy.', 'DUPLICATE');
 
     const now = new Date();
     const previous = existingIndex >= 0 ? items[existingIndex] : undefined;
@@ -83,12 +104,12 @@ export class LocalDataService implements DataService {
       createdAt: previous?.createdAt || now.toISOString(),
       playerId: player.id,
       playerName: player.name,
-      weight: Number(input.weight.toFixed(2)),
-      fatigue: input.fatigue,
-      soreness: input.soreness,
+      weight: input.weight === undefined ? previous?.weight : Number(input.weight.toFixed(2)),
+      fatigue: input.fatigue ?? previous?.fatigue,
+      soreness: input.soreness ?? previous?.soreness,
       comments: sanitizeComment(input.comments),
       sessionId: input.sessionId,
-      createdBy: 'tablet-vestuario',
+      createdBy: auth.role === 'player' ? `jugador:${player.id}` : 'cuerpo-tecnico',
       updatedAt: now.toISOString(),
     };
 

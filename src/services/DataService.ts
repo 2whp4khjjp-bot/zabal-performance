@@ -1,12 +1,12 @@
-import type { AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import type { AuthRole, AuthSession, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 
 export interface DataService {
-  authenticate(pin: string): Promise<AuthSession>;
+  authenticate(pin: string, role: AuthRole): Promise<AuthSession>;
   logout(token: string): Promise<void>;
   getPlayers(token: string): Promise<Player[]>;
   getMeasurements(token: string): Promise<Measurement[]>;
   getCurrentSession(token: string): Promise<TrainingSession>;
-  saveMeasurement(token: string, input: MeasurementInput, overwrite: boolean): Promise<Measurement>;
+  saveMeasurement(token: string, input: MeasurementInput): Promise<Measurement>;
 }
 
 export class DataServiceError extends Error {

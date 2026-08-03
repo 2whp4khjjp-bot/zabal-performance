@@ -12,7 +12,7 @@ export const readAuthSession = (now = Date.now()): AuthSession | null => {
     const value = localStorage.getItem(SESSION_STORAGE_KEY);
     if (!value) return null;
     const session = JSON.parse(value) as AuthSession;
-    if (!session.token || !Number.isFinite(session.expiresAt) || session.expiresAt <= now) {
+    if (!session.token || !['player', 'staff'].includes(session.role) || !Number.isFinite(session.expiresAt) || session.expiresAt <= now) {
       clearAuthSession();
       return null;
     }

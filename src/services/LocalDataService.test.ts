@@ -5,20 +5,28 @@ describe('servicio local', () => {
   beforeEach(() => localStorage.clear());
   it('valida el PIN sin almacenarlo', async () => {
     const service = new LocalDataService();
-    await expect(service.authenticate('9999')).rejects.toThrow('PIN');
-    const session = await service.authenticate('2026');
+    await expect(service.authenticate('9999', 'staff')).rejects.toThrow('PIN');
+    const session = await service.authenticate('2026', 'staff');
     expect(session.token).toMatch(/^local-/);
     expect(JSON.stringify(localStorage)).not.toContain('2026');
   });
-  it('impide duplicados accidentales y permite sobrescritura explícita', async () => {
+  it('guarda el control por fases sin borrar los datos anteriores', async () => {
     const service = new LocalDataService();
-    const auth = await service.authenticate('2026');
+    const auth = await service.authenticate('2026', 'staff');
     const players = await service.getPlayers(auth.token);
     const session = await service.getCurrentSession(auth.token);
-    const input = { playerId: players[0].id, playerName: players[0].name, weight: 72.5, fatigue: 3, soreness: 2, comments: '', sessionId: session.id };
-    await service.saveMeasurement(auth.token, input, false);
-    await expect(service.saveMeasurement(auth.token, input, false)).rejects.toThrow('existe');
-    const updated = await service.saveMeasurement(auth.token, { ...input, fatigue: 5 }, true);
+    const input = { playerId: players[0].id, playerName: players[0].name, weight: 72.5, comments: '', sessionId: session.id };
+    await service.saveMeasurement(auth.token, input);
+    const updated = await service.saveMeasurement(auth.token, { ...input, weight: undefined, fatigue: 5 });
+    expect(updated.weight).toBe(72.5);
     expect(updated.fatigue).toBe(5);
+  });
+  it('el jugador solo puede leer y guardar sus propios datos', async () => {
+    const service = new LocalDataService();
+    const auth = await service.authenticate('1001', 'player');
+    const players = await service.getPlayers(auth.token);
+    const measurements = await service.getMeasurements(auth.token);
+    expect(players).toHaveLength(1);
+    expect(measurements.every((item) => item.playerId === players[0].id)).toBe(true);
   });
 });
