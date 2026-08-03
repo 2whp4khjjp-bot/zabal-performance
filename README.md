@@ -8,11 +8,11 @@ La identidad visual toma como referencia general la web del Atlético Zabal Line
 
 ## Qué incluye
 
-- Acceso mediante un único PIN del cuerpo técnico.
-- Sesión de 30 minutos, persistente tras recargar y con cierre manual/automático.
+- Acceso separado: PIN compartido del cuerpo técnico y PIN personal para cada jugador.
+- Sesión firmada de 30 minutos, persistente tras recargar y con cierre manual/automático.
 - Cuadrícula táctil de 24 jugadores ficticios con búsqueda y filtros.
-- Estados pendiente, normal, moderado y alerta con color, texto e icono.
-- Registro y edición controlada de mediciones sin duplicados accidentales.
+- Estados pendiente, parcial, normal, moderado y alerta con color, texto e icono.
+- Guardado acumulativo por fases: peso/molestias antes y fatiga después, sin borrar campos ya registrados.
 - Borrador local por jugador para no perder el formulario si se corta la conexión.
 - Evolución individual con las últimas diez mediciones.
 - Panel técnico con resumen, alertas, filtros, ordenación y comparativa semanal.
@@ -47,7 +47,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-Abra `http://localhost:4173`. En el modo de demostración el PIN es **2026**. Los datos quedan en el almacenamiento local del navegador y pueden reiniciarse borrando los datos del sitio.
+Abra `http://localhost:4173`. En demostración, el PIN técnico es **2026** y el primer PIN de jugador es **1001**. Los datos quedan en el almacenamiento local del navegador y pueden reiniciarse borrando los datos del sitio.
 
 Comprobaciones:
 
@@ -83,11 +83,12 @@ node -e "console.log(require('node:crypto').createHash('sha256').update('TU_PIN'
 3. Copie `apps-script/Code.gs` y `apps-script/appsscript.json` en el proyecto.
 4. Guarde y recargue la hoja.
 5. En el nuevo menú **Zabal Performance**, ejecute **Preparar pestañas y datos demo**. Autorice el script con la cuenta propietaria.
-6. En el mismo menú, pulse **Configurar PIN**. El PIN se convierte a SHA-256 y solo se guarda el hash en las propiedades del script.
-7. En Apps Script, elija **Implementar > Nueva implementación > Aplicación web**.
-8. Configure **Ejecutar como: yo** y **Quién tiene acceso: cualquier usuario**. La API sigue protegida por el token temporal obtenido con el PIN; los jugadores nunca reciben acceso a la hoja.
-9. Copie la URL que termina en `/exec`.
-10. Configure `.env`:
+6. En el mismo menú, pulse **Configurar PIN del cuerpo técnico**.
+7. Pulse **Generar PINs de jugadores**. Puede editar cualquier código directamente en la columna `pin` de la pestaña privada `Códigos jugadores` y después pulsar **Aplicar PINs editados**. Reparta a cada jugador únicamente su código.
+8. En Apps Script, elija **Implementar > Nueva implementación > Aplicación web**.
+9. Configure **Ejecutar como: yo** y **Quién tiene acceso: cualquier usuario**. La API sigue protegida por una sesión firmada; los jugadores nunca reciben acceso a la hoja.
+10. Copie la URL que termina en `/exec`.
+11. Configure `.env`:
 
 ```env
 VITE_DATA_PROVIDER=google-sheets
@@ -95,13 +96,15 @@ VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/ID_DEL_DESPLIEGUE/exec
 VITE_PUBLIC_URL=https://rendimiento.atleticozabal.com
 ```
 
-11. Compile y despliegue de nuevo la web.
+12. Compile y despliegue de nuevo la web.
 
-Las pestañas creadas son `Jugadores`, `Mediciones`, `Sesiones` y `Configuración`, con las columnas solicitadas en el encargo.
+Las pestañas creadas son `Jugadores`, `Mediciones`, `Sesiones`, `Configuración` y `Códigos jugadores`.
 
 ### Añadir o desactivar jugadores
 
 - Añadir: cree una fila en `Jugadores` con un `id` único, nombre, dorsal opcional, `activo=TRUE`, orden y fecha de alta.
+- PIN editable: cambie el código en `Códigos jugadores`, manteniendo entre 4 y 12 dígitos, y pulse **Aplicar PINs editados**. El sistema impide códigos repetidos o jugadores sin PIN.
+- Regenerar todos: **Generar PINs de jugadores** crea códigos nuevos para toda la plantilla e invalida los anteriores.
 - Desactivar: cambie `activo` a `FALSE`. No borre al jugador; así se conserva su historial.
 - Ordenar: cambie la columna `orden`.
 
@@ -149,15 +152,15 @@ El isotipo actual es provisional y original. Para sustituirlo:
 
 ## Seguridad y privacidad
 
-- El PIN no se guarda en texto plano.
-- En modo Google Sheets, el navegador solo recibe un token aleatorio que caduca a los 30 minutos.
-- Apps Script valida el token, el jugador, los rangos y la identidad nombre/id en cada escritura.
+- El PIN técnico y los PINs personales se validan mediante hash; la pestaña privada de códigos solo es visible para la cuenta propietaria de la hoja.
+- El navegador recibe una sesión firmada que caduca a los 30 minutos y no depende de la caché temporal de Apps Script.
+- Apps Script limita las lecturas del jugador a su propia ficha y valida también su identidad en cada escritura.
 - `LockService` evita carreras y el par jugador-fecha se actualiza de forma controlada.
 - Los comentarios se limpian y limitan a 500 caracteres.
 - La hoja se ejecuta bajo la cuenta propietaria; no se comparte con jugadores.
 - El identificador del jugador no se toma de una URL editable.
 
-Limitaciones: Google Apps Script y Sheets son adecuados para un equipo y un volumen moderado, pero no ofrecen control de acceso por fila, auditoría avanzada ni garantías de una base de datos transaccional. El token vive en `CacheService` y puede invalidarse antes de 30 minutos en casos poco frecuentes. Para varios equipos, más personal o datos médicos detallados, conviene migrar a Supabase/PostgreSQL con autenticación de técnicos, políticas de acceso y copias de seguridad.
+Limitaciones: Google Apps Script y Sheets son adecuados para un equipo y un volumen moderado, pero no ofrecen auditoría avanzada ni las garantías de una base de datos transaccional. Para varios equipos, más personal o datos médicos detallados, conviene migrar a Supabase/PostgreSQL con autenticación individual de técnicos, políticas de acceso y copias de seguridad.
 
 Antes de usar datos reales, revise el tratamiento de datos personales, el acceso de entrenadores, la retención y las obligaciones aplicables en España/UE.
 

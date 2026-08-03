@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AuthSession, DashboardFilter, Measurement, MeasurementInput, Player, TrainingSession } from './types';
+import type { AuthRole, AuthSession, DashboardFilter, Measurement, MeasurementInput, Player, TrainingSession } from './types';
 import { dataService } from './services';
 import { clearAuthSession, readAuthSession, remainingSeconds, saveAuthSession } from './utils/session';
 import { AppHeader } from './components/AppHeader';
@@ -73,6 +73,7 @@ export default function App() {
       setPlayers(nextPlayers);
       setMeasurements(nextMeasurements);
       setTrainingSession(nextSession);
+      if (auth.role === 'player') setSelectedPlayer(nextPlayers[0] ?? null);
     }).catch((cause: Error) => {
       setError(cause.message || 'No se pudieron cargar los datos.');
       if (/sesión|session|unauthorized/i.test(cause.message)) void logout();
@@ -85,11 +86,11 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  const login = async (pin: string) => {
+  const login = async (pin: string, role: AuthRole) => {
     setLoading(true);
     setError('');
     try {
-      const session = await dataService.authenticate(pin);
+      const session = await dataService.authenticate(pin, role);
       saveAuthSession(session);
       setAuth(session);
     } catch (cause) {
@@ -99,12 +100,12 @@ export default function App() {
     }
   };
 
-  const saveMeasurement = async (input: MeasurementInput, overwrite: boolean) => {
+  const saveMeasurement = async (input: MeasurementInput) => {
     if (!auth) return false;
     setSaving(true);
     setError('');
     try {
-      const saved = await dataService.saveMeasurement(auth.token, input, overwrite);
+      const saved = await dataService.saveMeasurement(auth.token, input);
       setMeasurements((current) => {
         const index = current.findIndex((item) => item.id === saved.id);
         if (index < 0) return [...current, saved];
@@ -112,8 +113,8 @@ export default function App() {
         next[index] = saved;
         return next;
       });
-      setToast(overwrite ? 'Medición actualizada correctamente' : 'Medición guardada correctamente');
-      window.setTimeout(() => { setSelectedPlayer(null); setView('players'); }, 850);
+      setToast('Datos guardados correctamente');
+      if (auth.role === 'staff') window.setTimeout(() => { setSelectedPlayer(null); setView('players'); }, 850);
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar la medición.');
@@ -134,12 +135,12 @@ export default function App() {
   return (
     <div className="app">
       <OfflineBanner offline={offline} />
-      <AppHeader remaining={remaining} view={view} onViewChange={(next) => { setView(next); setSelectedPlayer(null); }} onLogout={() => void logout()} />
+      <AppHeader remaining={remaining} view={view} role={auth.role} playerName={auth.playerName} onViewChange={(next) => { setView(next); setSelectedPlayer(null); }} onLogout={() => void logout()} />
       {error && <div className="global-error" role="alert"><span>{error}</span><button onClick={() => setError('')}>Cerrar</button></div>}
       {loading && !players.length ? <div className="loading-screen"><span className="loader" /><p>Preparando la sesión…</p></div> : null}
-      {!loading && view === 'players' && !selectedPlayer && <PlayerGrid players={players} measurements={measurements} onSelect={setSelectedPlayer} filter={filter} onFilterChange={setFilter} query={query} onQueryChange={setQuery} />}
-      {!loading && view === 'players' && selectedPlayer && trainingSession && <PlayerForm player={selectedPlayer} players={players} measurements={measurements} session={trainingSession} saving={saving} onSave={saveMeasurement} onBack={() => setSelectedPlayer(null)} onNavigate={setSelectedPlayer} />}
-      {!loading && view === 'technical' && <TechnicalPanel players={players} measurements={measurements} />}
+      {!loading && auth.role === 'staff' && view === 'players' && !selectedPlayer && <PlayerGrid players={players} measurements={measurements} onSelect={setSelectedPlayer} filter={filter} onFilterChange={setFilter} query={query} onQueryChange={setQuery} />}
+      {!loading && view === 'players' && selectedPlayer && trainingSession && <PlayerForm player={selectedPlayer} measurements={measurements} session={trainingSession} saving={saving} onSave={saveMeasurement} onBack={() => setSelectedPlayer(null)} role={auth.role} />}
+      {!loading && auth.role === 'staff' && view === 'technical' && <TechnicalPanel players={players} measurements={measurements} />}
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
       <SiteFooter />
     </div>

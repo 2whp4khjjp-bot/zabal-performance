@@ -43,8 +43,10 @@ export const generatePdfReport = async ({ kind, measurements, players, playerId 
 
   let tableStartY = 64;
   if (items.length) {
-    const fatigueAverage = items.reduce((sum, item) => sum + item.fatigue, 0) / items.length;
-    const sorenessAverage = items.reduce((sum, item) => sum + item.soreness, 0) / items.length;
+    const fatigueValues = items.map((item) => item.fatigue).filter((value): value is number => value !== undefined);
+    const sorenessValues = items.map((item) => item.soreness).filter((value): value is number => value !== undefined);
+    const fatigueAverage = fatigueValues.length ? fatigueValues.reduce((sum, value) => sum + value, 0) / fatigueValues.length : 0;
+    const sorenessAverage = sorenessValues.length ? sorenessValues.reduce((sum, value) => sum + value, 0) / sorenessValues.length : 0;
     const chartItems = [
       { label: 'Fatiga media', value: fatigueAverage, color: [216, 159, 17] as [number, number, number] },
       { label: 'Molestias media', value: sorenessAverage, color: [200, 66, 79] as [number, number, number] },
@@ -67,7 +69,7 @@ export const generatePdfReport = async ({ kind, measurements, players, playerId 
     head: [['Fecha', 'Jugador', 'Peso', 'Fatiga', 'Molestias', 'Comentarios']],
     body: items
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map((item) => [item.date, item.playerName, `${item.weight} kg`, item.fatigue, item.soreness, item.comments || '—']),
+      .map((item) => [item.date, item.playerName, item.weight !== undefined ? `${item.weight} kg` : '—', item.fatigue ?? '—', item.soreness ?? '—', item.comments || '—']),
     styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
     headStyles: { fillColor: [22, 54, 95], textColor: [255, 255, 255] },
     alternateRowStyles: { fillColor: [245, 247, 250] },

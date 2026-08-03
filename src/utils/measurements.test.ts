@@ -23,6 +23,9 @@ describe('lógica de mediciones', () => {
     expect(getAlertLevel(measurement(4, 2))).toBe('moderate');
     expect(getAlertLevel(measurement(2, 7))).toBe('alert');
   });
+  it('distingue un registro guardado parcialmente', () => {
+    expect(getAlertLevel({ ...measurement(3, 2), fatigue: undefined })).toBe('partial');
+  });
   it('elimina marcas HTML y limita el comentario', () => {
     expect(sanitizeComment('<b>dolor</b>')).toBe('bdolor/b');
     expect(sanitizeComment('x'.repeat(550))).toHaveLength(500);

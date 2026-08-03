@@ -4,11 +4,11 @@ import { readAuthSession, remainingSeconds, saveAuthSession, SESSION_STORAGE_KEY
 describe('sesión local', () => {
   beforeEach(() => localStorage.clear());
   it('recupera una sesión no caducada tras recargar', () => {
-    saveAuthSession({ token: 'abc', expiresAt: 20_000 });
-    expect(readAuthSession(10_000)).toEqual({ token: 'abc', expiresAt: 20_000 });
+    saveAuthSession({ token: 'abc', expiresAt: 20_000, role: 'staff' });
+    expect(readAuthSession(10_000)).toEqual({ token: 'abc', expiresAt: 20_000, role: 'staff' });
   });
   it('borra una sesión caducada', () => {
-    saveAuthSession({ token: 'abc', expiresAt: 5_000 });
+    saveAuthSession({ token: 'abc', expiresAt: 5_000, role: 'staff' });
     expect(readAuthSession(10_000)).toBeNull();
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
   });

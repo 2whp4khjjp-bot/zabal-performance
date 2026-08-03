@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, History, Save, Scale, TrendingDown, TrendingUp } from 'lucide-react';
-import type { Measurement, MeasurementInput, Player, TrainingSession } from '../types';
+import { ArrowLeft, ChevronDown, ChevronUp, History, Save, Scale, TrendingDown, TrendingUp } from 'lucide-react';
+import type { AuthRole, Measurement, MeasurementInput, Player, TrainingSession } from '../types';
 import { formatDate, todayKey } from '../utils/date';
 import { average, parseWeight, recentForPlayer, weightChange } from '../utils/measurements';
 import { Sparkline } from './Sparkline';
 
 type FormProps = {
   player: Player;
-  players: Player[];
   measurements: Measurement[];
   session: TrainingSession;
   saving: boolean;
-  onSave: (input: MeasurementInput, overwrite: boolean) => Promise<boolean>;
+  onSave: (input: MeasurementInput) => Promise<boolean>;
   onBack: () => void;
-  onNavigate: (player: Player) => void;
+  role: AuthRole;
 };
 
 type Draft = { weight: string; fatigue: number | null; soreness: number | null; comments: string };
@@ -26,7 +25,7 @@ const readDraft = (playerId: string, existing?: Measurement): Draft => {
     if (stored) return JSON.parse(stored) as Draft;
   } catch { /* El formulario sigue disponible con valores seguros. */ }
   return {
-    weight: existing ? String(existing.weight).replace('.', ',') : '',
+    weight: existing?.weight !== undefined ? String(existing.weight).replace('.', ',') : '',
     fatigue: existing?.fatigue ?? null,
     soreness: existing?.soreness ?? null,
     comments: existing?.comments ?? '',
@@ -53,19 +52,16 @@ function ScorePicker({ label, value, onChange }: { label: string; value: number 
   );
 }
 
-export function PlayerForm({ player, players, measurements, session, saving, onSave, onBack, onNavigate }: FormProps) {
+export function PlayerForm({ player, measurements, session, saving, onSave, onBack, role }: FormProps) {
   const existing = measurements.find((item) => item.playerId === player.id && item.date === todayKey());
   const [draft, setDraft] = useState<Draft>(() => readDraft(player.id, existing));
   const [errors, setErrors] = useState<string[]>([]);
   const [showEvolution, setShowEvolution] = useState(false);
-  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const history = useMemo(() => recentForPlayer(measurements, player.id), [measurements, player.id]);
-  const currentIndex = players.findIndex((item) => item.id === player.id);
 
   useEffect(() => {
     setDraft(readDraft(player.id, existing));
     setErrors([]);
-    setConfirmOverwrite(false);
     setShowEvolution(false);
   }, [player.id]);
 
@@ -73,30 +69,26 @@ export function PlayerForm({ player, players, measurements, session, saving, onS
     localStorage.setItem(draftKey(player.id), JSON.stringify(draft));
   }, [draft, player.id]);
 
-  const submit = async (event: FormEvent, overwrite = false) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const weight = parseWeight(draft.weight);
+    const weight = draft.weight.trim() ? parseWeight(draft.weight) : undefined;
     const nextErrors: string[] = [];
-    if (weight === null) nextErrors.push('Introduce un peso válido entre 30 y 250 kg.');
-    if (draft.fatigue === null) nextErrors.push('Selecciona el nivel de fatiga.');
-    if (draft.soreness === null) nextErrors.push('Selecciona el nivel de molestias.');
-    if (nextErrors.length || weight === null || draft.fatigue === null || draft.soreness === null) {
+    if (weight === null) nextErrors.push('El peso debe estar entre 30 y 250 kg. También puedes dejarlo vacío.');
+    if (weight === undefined && draft.fatigue === null && draft.soreness === null && !draft.comments.trim()) nextErrors.push('Rellena al menos un dato antes de guardar.');
+    if (nextErrors.length || weight === null) {
       setErrors(nextErrors);
       return;
     }
-    if (existing && !overwrite) {
-      setConfirmOverwrite(true);
-      return;
-    }
+    setErrors([]);
     const saved = await onSave({
       playerId: player.id,
       playerName: player.name,
       weight,
-      fatigue: draft.fatigue,
-      soreness: draft.soreness,
+      fatigue: draft.fatigue ?? undefined,
+      soreness: draft.soreness ?? undefined,
       comments: draft.comments,
       sessionId: session.id,
-    }, overwrite);
+    });
     if (saved) localStorage.removeItem(draftKey(player.id));
   };
 
@@ -104,7 +96,7 @@ export function PlayerForm({ player, players, measurements, session, saving, onS
 
   return (
     <main className="page-shell form-page">
-      <button className="back-link" onClick={onBack}><ArrowLeft size={19} /> Volver al listado</button>
+      {role === 'staff' && <button className="back-link" onClick={onBack}><ArrowLeft size={19} /> Volver al listado</button>}
       <div className="form-heading">
         <div className="player-avatar">{player.number ?? '—'}</div>
         <div><p className="eyebrow eyebrow--dark">Control preentrenamiento · {formatDate(todayKey())}</p><h1>{player.name}</h1>{existing && <span className="edit-badge"><History size={14} /> Editando la medición de hoy</span>}</div>
@@ -137,17 +129,9 @@ export function PlayerForm({ player, players, measurements, session, saving, onS
             <textarea id="comments" rows={3} maxLength={500} value={draft.comments} onChange={(event) => setDraft({ ...draft, comments: event.target.value })} placeholder="Ej.: sobrecarga leve en gemelo derecho…" />
           </section>
           {errors.length > 0 && <div className="validation-summary" role="alert"><strong>Revisa estos campos:</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
-          {confirmOverwrite && (
-            <div className="overwrite-confirm" role="alert">
-              <div><strong>Ya existe una medición de hoy.</strong><span>¿Quieres sustituirla por estos valores?</span></div>
-              <button type="button" className="button button--ghost" onClick={() => setConfirmOverwrite(false)}>Cancelar</button>
-              <button type="button" className="button button--danger" onClick={(event) => void submit(event, true)} disabled={saving}>Sí, sobrescribir</button>
-            </div>
-          )}
+          <p className="partial-save-note">Puedes guardar solo el peso o las molestias ahora y completar la fatiga más tarde. Lo que dejes vacío no borrará los datos ya guardados.</p>
           <div className="form-actions">
-            <button type="button" className="button button--secondary" disabled={currentIndex <= 0} onClick={() => onNavigate(players[currentIndex - 1])}><ArrowLeft size={19} /> Anterior</button>
             <button type="submit" className="button button--primary save-button" disabled={saving}><Save size={20} /> {saving ? 'Guardando…' : existing ? 'Actualizar medición' : 'Guardar medición'}</button>
-            <button type="button" className="button button--secondary" disabled={currentIndex >= players.length - 1} onClick={() => onNavigate(players[currentIndex + 1])}>Siguiente <ArrowRight size={19} /></button>
           </div>
         </form>
 
@@ -159,15 +143,14 @@ export function PlayerForm({ player, players, measurements, session, saving, onS
           {showEvolution && (
             <div className="evolution-content">
               <div className="evolution-stats">
-                <div><small>Último peso</small><strong>{history.at(-1)?.weight ?? '—'} <span>kg</span></strong></div>
+                <div><small>Último peso</small><strong>{history.map((item) => item.weight).filter((value) => value !== undefined).at(-1) ?? '—'} <span>kg</span></strong></div>
                 <div><small>Cambio</small><strong className={change > 0 ? 'trend-up' : change < 0 ? 'trend-down' : ''}>{change > 0 ? <TrendingUp size={18} /> : change < 0 ? <TrendingDown size={18} /> : null}{change > 0 ? '+' : ''}{change} <span>kg</span></strong></div>
-                <div><small>Fatiga media</small><strong>{average(history.map((item) => item.fatigue)).toFixed(1)}</strong></div>
-                <div><small>Molestias media</small><strong>{average(history.map((item) => item.soreness)).toFixed(1)}</strong></div>
+                {role === 'staff' && <div><small>Fatiga media</small><strong>{average(history.map((item) => item.fatigue)).toFixed(1)}</strong></div>}
+                {role === 'staff' && <div><small>Molestias media</small><strong>{average(history.map((item) => item.soreness)).toFixed(1)}</strong></div>}
               </div>
-              <div className="mini-chart"><span>Peso</span><Sparkline values={history.map((item) => item.weight)} label="Evolución del peso" /></div>
-              <div className="mini-chart"><span>Fatiga</span><Sparkline values={history.map((item) => item.fatigue)} color="#d39200" min={1} max={10} label="Evolución de la fatiga" /></div>
-              <div className="mini-chart"><span>Molestias</span><Sparkline values={history.map((item) => item.soreness)} color="#c8424f" min={1} max={10} label="Evolución de las molestias" /></div>
-              <p className="privacy-note">Cierra esta zona antes de entregar la tablet al siguiente jugador.</p>
+              <div className="mini-chart"><span>Peso</span><Sparkline values={history.map((item) => item.weight).filter((value): value is number => value !== undefined)} label="Evolución del peso" /></div>
+              {role === 'staff' && <div className="mini-chart"><span>Fatiga</span><Sparkline values={history.map((item) => item.fatigue).filter((value): value is number => value !== undefined)} color="#d39200" min={1} max={10} label="Evolución de la fatiga" /></div>}
+              {role === 'staff' && <div className="mini-chart"><span>Molestias</span><Sparkline values={history.map((item) => item.soreness).filter((value): value is number => value !== undefined)} color="#c8424f" min={1} max={10} label="Evolución de las molestias" /></div>}
             </div>
           )}
         </aside>

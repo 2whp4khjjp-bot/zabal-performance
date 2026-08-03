@@ -17,7 +17,7 @@ type Filters = {
 
 const initialFilters: Filters = { query: '', playerId: '', from: '', to: '', minWeight: '', maxWeight: '', minFatigue: '', maxFatigue: '', minSoreness: '', maxSoreness: '', status: '' };
 
-const statusText: Record<AlertLevel, string> = { pending: 'Pendiente', normal: 'Normal', moderate: 'Moderado', alert: 'Alerta' };
+const statusText: Record<AlertLevel, string> = { pending: 'Pendiente', partial: 'Parcial', normal: 'Normal', moderate: 'Moderado', alert: 'Alerta' };
 
 export function TechnicalPanel({ players, measurements }: { players: Player[]; measurements: Measurement[] }) {
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -37,12 +37,12 @@ export function TechnicalPanel({ players, measurements }: { players: Player[]; m
       if (filters.playerId && item.playerId !== filters.playerId) return false;
       if (filters.from && item.date < filters.from) return false;
       if (filters.to && item.date > filters.to) return false;
-      const ranges: Array<[number, number | null, number | null]> = [
+      const ranges: Array<[number | undefined, number | null, number | null]> = [
         [item.weight, toNumber(filters.minWeight), toNumber(filters.maxWeight)],
         [item.fatigue, toNumber(filters.minFatigue), toNumber(filters.maxFatigue)],
         [item.soreness, toNumber(filters.minSoreness), toNumber(filters.maxSoreness)],
       ];
-      if (ranges.some(([value, min, max]) => (min !== null && value < min) || (max !== null && value > max))) return false;
+      if (ranges.some(([value, min, max]) => ((min !== null || max !== null) && value === undefined) || (value !== undefined && ((min !== null && value < min) || (max !== null && value > max))))) return false;
       return !filters.status || getAlertLevel(item) === filters.status;
     });
     return result.sort((a, b) => {
@@ -73,8 +73,8 @@ export function TechnicalPanel({ players, measurements }: { players: Player[]; m
 
       <section className="metric-grid" aria-label="Resumen del día">
         <article><span className="metric-icon metric-icon--blue"><UsersRound /></span><div><small>Registrados hoy</small><strong>{registeredIds.size}<span>/{players.length}</span></strong><em>{players.length - registeredIds.size} pendientes</em></div></article>
-        <article><span className="metric-icon metric-icon--yellow"><AlertTriangle /></span><div><small>Alertas de fatiga</small><strong>{todayItems.filter((item) => item.fatigue >= 7).length}</strong><em>{todayItems.filter((item) => item.fatigue >= 4 && item.fatigue < 7).length} moderadas</em></div></article>
-        <article><span className="metric-icon metric-icon--red"><AlertTriangle /></span><div><small>Alertas de molestias</small><strong>{todayItems.filter((item) => item.soreness >= 7).length}</strong><em>{todayItems.filter((item) => item.soreness >= 4 && item.soreness < 7).length} moderadas</em></div></article>
+        <article><span className="metric-icon metric-icon--yellow"><AlertTriangle /></span><div><small>Alertas de fatiga</small><strong>{todayItems.filter((item) => (item.fatigue ?? 0) >= 7).length}</strong><em>{todayItems.filter((item) => (item.fatigue ?? 0) >= 4 && (item.fatigue ?? 0) < 7).length} moderadas</em></div></article>
+        <article><span className="metric-icon metric-icon--red"><AlertTriangle /></span><div><small>Alertas de molestias</small><strong>{todayItems.filter((item) => (item.soreness ?? 0) >= 7).length}</strong><em>{todayItems.filter((item) => (item.soreness ?? 0) >= 4 && (item.soreness ?? 0) < 7).length} moderadas</em></div></article>
         <article><span className="metric-icon metric-icon--green"><TrendingUp /></span><div><small>Cambios de peso</small><strong>{relevantWeightChanges.length}</strong><em>≥ 1,5 kg entre controles</em></div></article>
       </section>
 
@@ -94,7 +94,7 @@ export function TechnicalPanel({ players, measurements }: { players: Player[]; m
         <div className="filter-topline">
           <div className="search-field"><Search size={19} /><input value={filters.query} onChange={(event) => setFilters({ ...filters, query: event.target.value })} placeholder="Buscar jugador o comentario…" aria-label="Buscar mediciones" /></div>
           <select value={filters.playerId} onChange={(event) => setFilters({ ...filters, playerId: event.target.value })} aria-label="Filtrar por jugador"><option value="">Todos los jugadores</option>{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select>
-          <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value as Filters['status'] })} aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="normal">Normal</option><option value="moderate">Moderado</option><option value="alert">Alerta</option></select>
+          <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value as Filters['status'] })} aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="partial">Parcial</option><option value="normal">Normal</option><option value="moderate">Moderado</option><option value="alert">Alerta</option></select>
           <button className="button button--secondary" onClick={() => setShowAdvanced((value) => !value)}><Filter size={18} /> Más filtros</button>
           <button className="text-button" onClick={() => setFilters(initialFilters)}>Limpiar</button>
         </div>
@@ -117,7 +117,7 @@ export function TechnicalPanel({ players, measurements }: { players: Player[]; m
             <thead><tr>{([
               ['date', 'Fecha'], ['time', 'Hora'], ['playerName', 'Jugador'], ['weight', 'Peso'], ['fatigue', 'Fatiga'], ['soreness', 'Molestias'], ['status', 'Estado'],
             ] as const).map(([key, label]) => <th key={key}><button onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>)}<th>Comentarios</th></tr></thead>
-            <tbody>{filtered.slice(0, 250).map((item) => { const level = getAlertLevel(item); return <tr key={item.id}><td>{item.date}</td><td>{item.time}</td><td><strong>{item.playerName}</strong></td><td>{item.weight} kg</td><td>{item.fatigue}</td><td>{item.soreness}</td><td><span className={`status-pill status-pill--${level}`}>{statusText[level]}</span></td><td className="comments-cell">{item.comments || '—'}</td></tr>; })}</tbody>
+            <tbody>{filtered.slice(0, 250).map((item) => { const level = getAlertLevel(item); return <tr key={item.id}><td>{item.date}</td><td>{item.time}</td><td><strong>{item.playerName}</strong></td><td>{item.weight !== undefined ? `${item.weight} kg` : '—'}</td><td>{item.fatigue ?? '—'}</td><td>{item.soreness ?? '—'}</td><td><span className={`status-pill status-pill--${level}`}>{statusText[level]}</span></td><td className="comments-cell">{item.comments || '—'}</td></tr>; })}</tbody>
           </table>
         </div>
         {!filtered.length && <div className="empty-state compact"><h3>No hay mediciones para estos filtros</h3><button className="text-button" onClick={() => setFilters(initialFilters)}>Restablecer filtros</button></div>}
@@ -127,7 +127,7 @@ export function TechnicalPanel({ players, measurements }: { players: Player[]; m
         <article className="panel-card individual-card">
           <div className="panel-card__heading"><div><p className="eyebrow eyebrow--dark">Vista individual</p><h2>Evolución del jugador</h2></div><button className="button button--secondary" disabled={!individualId} onClick={() => void pdf('player')}><FileDown size={17} /> PDF</button></div>
           <select value={individualId} onChange={(event) => setIndividualId(event.target.value)} aria-label="Seleccionar jugador para ver su evolución"><option value="">Selecciona un jugador</option>{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select>
-          {selectedPlayer ? <div className="individual-insight"><h3>{selectedPlayer.name}</h3><div className="insight-stats"><span>Último peso <strong>{selectedHistory.at(-1)?.weight ?? '—'} kg</strong></span><span>Fatiga media <strong>{average(selectedHistory.map((item) => item.fatigue)).toFixed(1)}</strong></span><span>Molestias media <strong>{average(selectedHistory.map((item) => item.soreness)).toFixed(1)}</strong></span></div><Sparkline values={selectedHistory.map((item) => item.weight)} label="Evolución individual del peso" /></div> : <p className="muted-copy">Selecciona un jugador para ver solo sus últimos controles.</p>}
+          {selectedPlayer ? <div className="individual-insight"><h3>{selectedPlayer.name}</h3><div className="insight-stats"><span>Último peso <strong>{selectedHistory.map((item) => item.weight).filter((value) => value !== undefined).at(-1) ?? '—'} kg</strong></span><span>Fatiga media <strong>{average(selectedHistory.map((item) => item.fatigue)).toFixed(1)}</strong></span><span>Molestias media <strong>{average(selectedHistory.map((item) => item.soreness)).toFixed(1)}</strong></span></div><Sparkline values={selectedHistory.map((item) => item.weight).filter((value): value is number => value !== undefined)} label="Evolución individual del peso" /></div> : <p className="muted-copy">Selecciona un jugador para ver solo sus últimos controles.</p>}
         </article>
         <article className="panel-card weekly-card">
           <div className="panel-card__heading"><div><p className="eyebrow eyebrow--dark">Comparativa semanal</p><h2>Actividad por jugador</h2></div><button className="button button--secondary" onClick={() => void pdf('weekly')}><FileDown size={17} /> PDF</button></div>

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { appConfig, environment } from '../config';
+import type { AuthRole } from '../types';
 import { Brand } from './Brand';
 
 type LoginScreenProps = {
-  onLogin: (pin: string) => Promise<void>;
+  onLogin: (pin: string, role: AuthRole) => Promise<void>;
   loading: boolean;
   error: string;
 };
@@ -12,11 +13,12 @@ type LoginScreenProps = {
 export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
   const [pin, setPin] = useState('');
   const [visible, setVisible] = useState(false);
+  const [role, setRole] = useState<AuthRole>('player');
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!pin.trim() || loading) return;
-    await onLogin(pin);
+    await onLogin(pin, role);
     setPin('');
   };
 
@@ -36,14 +38,18 @@ export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
       <section className="login-panel" aria-labelledby="login-title">
         <div className="login-card">
           <div className="login-card__icon"><LockKeyhole size={26} aria-hidden="true" /></div>
-          <p className="eyebrow eyebrow--dark">Acceso del cuerpo técnico</p>
-          <h2 id="login-title">Comenzar recogida</h2>
-          <p>Introduce el PIN compartido una vez. La sesión permanecerá abierta durante {appConfig.sessionDurationMinutes} minutos.</p>
+          <p className="eyebrow eyebrow--dark">Acceso seguro</p>
+          <h2 id="login-title">Entrar en Zabal Performance</h2>
+          <p>Elige tu tipo de acceso. La sesión permanecerá abierta durante {appConfig.sessionDurationMinutes} minutos.</p>
+          <div className="login-role" role="group" aria-label="Tipo de acceso">
+            <button type="button" className={role === 'player' ? 'active' : ''} onClick={() => { setRole('player'); setPin(''); }}>Soy jugador</button>
+            <button type="button" className={role === 'staff' ? 'active' : ''} onClick={() => { setRole('staff'); setPin(''); }}>Cuerpo técnico</button>
+          </div>
           <form onSubmit={submit} noValidate>
-            <label htmlFor="staff-pin">PIN del cuerpo técnico</label>
+            <label htmlFor="access-pin">{role === 'player' ? 'Tu PIN personal' : 'PIN del cuerpo técnico'}</label>
             <div className="pin-field">
               <input
-                id="staff-pin"
+                id="access-pin"
                 data-testid="pin-input"
                 type={visible ? 'text' : 'password'}
                 inputMode="numeric"
@@ -64,7 +70,7 @@ export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
             </button>
           </form>
           <div className="security-note"><ShieldCheck size={18} /> El PIN no se guarda en este dispositivo.</div>
-          {environment.dataProvider === 'local' && <div className="demo-note">Modo demostración · PIN: <strong>2026</strong></div>}
+          {environment.dataProvider === 'local' && <div className="demo-note">Demostración · {role === 'player' ? <>jugador: <strong>1001</strong></> : <>cuerpo técnico: <strong>2026</strong></>}</div>}
         </div>
       </section>
     </main>

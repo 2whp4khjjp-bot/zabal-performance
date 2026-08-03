@@ -14,9 +14,9 @@ export type Measurement = {
   createdAt: string;
   playerId: string;
   playerName: string;
-  weight: number;
-  fatigue: number;
-  soreness: number;
+  weight?: number;
+  fatigue?: number;
+  soreness?: number;
   comments: string;
   sessionId: string;
   createdBy: string;
@@ -35,7 +35,9 @@ export type TrainingSession = {
   closedAt?: string;
 };
 
-export type AlertLevel = 'pending' | 'normal' | 'moderate' | 'alert';
+export type AlertLevel = 'pending' | 'partial' | 'normal' | 'moderate' | 'alert';
+
+export type AuthRole = 'player' | 'staff';
 
 export type AppConfig = {
   teamName: string;
@@ -53,10 +55,21 @@ export type AppConfig = {
 export type AuthSession = {
   token: string;
   expiresAt: number;
+  role: AuthRole;
+  playerId?: string;
+  playerName?: string;
 };
 
 export type DashboardFilter = 'all' | 'pending' | 'registered';
 
-export type MeasurementInput = Pick<Measurement, 'playerId' | 'playerName' | 'weight' | 'fatigue' | 'soreness' | 'comments' | 'sessionId'>;
+export type MeasurementInput = {
+  playerId: string;
+  playerName: string;
+  weight?: number;
+  fatigue?: number;
+  soreness?: number;
+  comments: string;
+  sessionId: string;
+};
 
 export type ReportKind = 'daily' | 'weekly' | 'player' | 'alerts';
