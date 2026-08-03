@@ -8,6 +8,8 @@ const SHEETS = {
   SESSIONS: 'Sesiones',
   CONFIG: 'Configuración',
   CODES: 'Códigos jugadores',
+  MATCHES: 'Partidos',
+  MATCH_MINUTES: 'Minutos partidos',
 };
 
 const HEADERS = {
@@ -16,6 +18,8 @@ const HEADERS = {
   Sesiones: ['id', 'fecha', 'tipo_sesion', 'rival', 'jornada', 'activa', 'hora_apertura', 'hora_cierre'],
   Configuración: ['clave', 'valor'],
   'Códigos jugadores': ['jugador_id', 'jugador_nombre', 'pin'],
+  Partidos: ['id', 'fecha', 'tipo', 'rival', 'duracion_minutos', 'creado_en', 'actualizado_en', 'creado_por'],
+  'Minutos partidos': ['partido_id', 'jugador_id', 'jugador_nombre', 'minutos'],
 };
 
 function onOpen() {
@@ -59,7 +63,7 @@ function initializePlayerPins() {
 }
 
 function doGet() {
-  return json_({ ok: true, data: { service: 'Zabal Performance API', version: 2 } });
+  return json_({ ok: true, data: { service: 'Zabal Performance API', version: 3 } });
 }
 
 function doPost(event) {
@@ -73,6 +77,8 @@ function doPost(event) {
     if (action === 'getMeasurements') return json_({ ok: true, data: getMeasurements_(session) });
     if (action === 'getCurrentSession') return json_({ ok: true, data: getCurrentSession_() });
     if (action === 'saveMeasurement') return json_({ ok: true, data: saveMeasurement_(input.measurement, session) });
+    if (action === 'getMatches') return json_({ ok: true, data: getMatches_(session) });
+    if (action === 'saveMatch') return json_({ ok: true, data: saveMatch_(input.match, session) });
     throw apiError_('Acción no permitida.', 'INVALID_ACTION');
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
@@ -93,6 +99,7 @@ function setupProject() {
   upsertConfig_('fatiga_alerta_desde', '7');
   upsertConfig_('molestias_moderada_desde', '4');
   upsertConfig_('molestias_alerta_desde', '7');
+  upsertConfig_('duracion_partido_minutos', '90');
   ensureAuthSecret_();
   return 'Estructura actualizada. Configura el PIN técnico y genera los PINs de jugadores desde el menú Zabal Performance.';
 }
@@ -137,6 +144,10 @@ function requireSession_(token) {
   }
 }
 
+function requireStaff_(session) {
+  if (!session || session.role !== 'staff') throw apiError_('Solo el cuerpo técnico puede acceder a los partidos.', 'FORBIDDEN');
+}
+
 function getPlayers_(session) {
   return rows_(SHEETS.PLAYERS).filter(function(row) { return boolean_(row.activo) && (!session || session.role === 'staff' || String(row.id) === String(session.playerId)); }).map(function(row) {
     return { id: String(row.id), name: String(row.nombre), number: numberOrNull_(row.dorsal), active: true, order: Number(row.orden || 0), joinedAt: dateKey_(row.fecha_alta) };
@@ -155,6 +166,81 @@ function getMeasurements_(session) {
       createdBy: String(row.creado_por || ''), updatedAt: iso_(row.actualizado_en),
     };
   });
+}
+
+function getMatches_(session) {
+  requireStaff_(session);
+  const minutesByMatch = {};
+  rows_(SHEETS.MATCH_MINUTES).forEach(function(row) {
+    const matchId = String(row.partido_id || '');
+    if (!minutesByMatch[matchId]) minutesByMatch[matchId] = [];
+    minutesByMatch[matchId].push({
+      playerId: String(row.jugador_id),
+      playerName: String(row.jugador_nombre),
+      minutes: Number(row.minutos || 0),
+    });
+  });
+  return rows_(SHEETS.MATCHES).map(function(row) {
+    return {
+      id: String(row.id),
+      date: dateKey_(row.fecha),
+      type: String(row.tipo) === 'friendly' ? 'friendly' : 'official',
+      opponent: String(row.rival || ''),
+      durationMinutes: Number(row.duracion_minutos || 90),
+      minutes: minutesByMatch[String(row.id)] || [],
+      createdAt: iso_(row.creado_en),
+      updatedAt: iso_(row.actualizado_en),
+      createdBy: String(row.creado_por || 'cuerpo-tecnico'),
+    };
+  }).sort(function(a, b) {
+    return (b.date + b.createdAt).localeCompare(a.date + a.createdAt);
+  });
+}
+
+function saveMatch_(input, session) {
+  requireStaff_(session);
+  if (!input) throw apiError_('Faltan los datos del partido.', 'VALIDATION');
+  const date = String(input.date || '').trim();
+  const type = String(input.type || '') === 'friendly' ? 'friendly' : String(input.type || '') === 'official' ? 'official' : '';
+  const opponent = String(input.opponent || '').replace(/[<>]/g, '').trim().slice(0, 100);
+  const duration = Number(input.durationMinutes);
+  const entries = Array.isArray(input.minutes) ? input.minutes : [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw apiError_('La fecha del partido no es válida.', 'VALIDATION');
+  if (!type) throw apiError_('El tipo de partido no es válido.', 'VALIDATION');
+  if (!opponent) throw apiError_('Introduce el rival.', 'VALIDATION');
+  if (!Number.isInteger(duration) || duration < 1 || duration > 180) throw apiError_('La duración del partido no es válida.', 'VALIDATION');
+  if (!entries.length) throw apiError_('Introduce los minutos de al menos un jugador.', 'VALIDATION');
+
+  const players = getPlayers_({ role: 'staff' });
+  const playersById = {};
+  players.forEach(function(player) { playersById[player.id] = player; });
+  const seen = {};
+  const cleanEntries = entries.map(function(entry) {
+    const playerId = String(entry.playerId || '');
+    const player = playersById[playerId];
+    const minutes = Number(entry.minutes);
+    if (!player || player.name !== String(entry.playerName || '') || seen[playerId]) throw apiError_('Hay un jugador no válido o repetido.', 'INVALID_PLAYER');
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > duration) throw apiError_('Los minutos de ' + player.name + ' no son válidos.', 'VALIDATION');
+    seen[playerId] = true;
+    return { playerId: player.id, playerName: player.name, minutes: minutes };
+  });
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw apiError_('Hay muchos guardados a la vez. Inténtalo de nuevo en unos segundos.', 'BUSY');
+  try {
+    const id = Utilities.getUuid();
+    const now = new Date();
+    sheet_(SHEETS.MATCHES).appendRow([id, date, type, opponent, duration, now, now, 'cuerpo-tecnico']);
+    const minuteRows = cleanEntries.map(function(entry) { return [id, entry.playerId, entry.playerName, entry.minutes]; });
+    const minutesSheet = sheet_(SHEETS.MATCH_MINUTES);
+    minutesSheet.getRange(minutesSheet.getLastRow() + 1, 1, minuteRows.length, minuteRows[0].length).setValues(minuteRows);
+    return {
+      id: id, date: date, type: type, opponent: opponent, durationMinutes: duration,
+      minutes: cleanEntries, createdAt: now.toISOString(), updatedAt: now.toISOString(), createdBy: 'cuerpo-tecnico',
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getCurrentSession_() {
