@@ -24,7 +24,7 @@ const HEADERS = {
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Zabal Performance')
-    .addItem('Preparar pestañas y datos demo', 'setupProject')
+    .addItem('Preparar estructura', 'setupProject')
     .addItem('Configurar PIN del cuerpo técnico', 'configurePinFromUi')
     .addItem('Generar PINs de jugadores', 'generatePlayerPinsFromUi')
     .addItem('Aplicar PINs editados', 'applyPlayerPinsFromUi')
@@ -91,15 +91,14 @@ function setupProject() {
   if (!spreadsheet) throw new Error('Abre este script desde la hoja de cálculo antes de ejecutar la configuración.');
   PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', spreadsheet.getId());
   Object.keys(HEADERS).forEach(function(name) { ensureSheet_(spreadsheet, name, HEADERS[name]); });
-  seedPlayers_();
-  upsertConfig_('nombre_equipo', 'Atlético Zabal Linense');
-  upsertConfig_('temporada', '2026-27');
-  upsertConfig_('duracion_sesion_minutos', '30');
-  upsertConfig_('fatiga_moderada_desde', '4');
-  upsertConfig_('fatiga_alerta_desde', '7');
-  upsertConfig_('molestias_moderada_desde', '4');
-  upsertConfig_('molestias_alerta_desde', '7');
-  upsertConfig_('duracion_partido_minutos', '90');
+  ensureConfig_('nombre_equipo', 'Atlético Zabal Linense');
+  ensureConfig_('temporada', '2026-27');
+  ensureConfig_('duracion_sesion_minutos', '30');
+  ensureConfig_('fatiga_moderada_desde', '4');
+  ensureConfig_('fatiga_alerta_desde', '7');
+  ensureConfig_('molestias_moderada_desde', '4');
+  ensureConfig_('molestias_alerta_desde', '7');
+  ensureConfig_('duracion_partido_minutos', '90');
   ensureAuthSecret_();
   return 'Estructura actualizada. Configura el PIN técnico y genera los PINs de jugadores desde el menú Zabal Performance.';
 }
@@ -425,20 +424,11 @@ function signature_(encoded) {
   return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(encoded, ensureAuthSecret_(), Utilities.Charset.UTF_8));
 }
 
-function seedPlayers_() {
-  const sheet = sheet_(SHEETS.PLAYERS);
-  if (sheet.getLastRow() > 1) return;
-  const names = ['Adrián Vega','Bruno Castillo','Carlos Medina','Darío Prieto','Elías Navarro','Fabio Serrano','Gael Romero','Hugo Torres','Iván Lozano','Jairo Campos','Leo Ramírez','Marcos Vidal','Nico Herrera','Óscar Molina','Pablo Ríos','Quim Santana','Raúl Cabrera','Sergio Moya','Tiago León','Unai Galindo','Víctor Soler','Xavi Moreno','Yeray Santos','Álex Peña'];
-  const today = dateKey_(new Date());
-  const values = names.map(function(name, index) { return ['player-' + String(index + 1).padStart(2, '0'), name, index + 1, true, index + 1, today]; });
-  sheet.getRange(2, 1, values.length, values[0].length).setValues(values);
-}
-
-function upsertConfig_(key, value) {
+function ensureConfig_(key, value) {
   const sheet = sheet_(SHEETS.CONFIG);
   const values = sheet.getDataRange().getValues();
   for (let index = 1; index < values.length; index += 1) {
-    if (String(values[index][0]) === key) { sheet.getRange(index + 1, 2).setValue(value); return; }
+    if (String(values[index][0]) === key) return;
   }
   sheet.appendRow([key, value]);
 }
