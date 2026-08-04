@@ -41,7 +41,7 @@ jobs:
           APPS_SCRIPT_URL: ${{ vars.VITE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxd14RX1ewTQtsSaK01aZzJI9KHJ5MpiYwAwjxe4jsiX7EuY1c7jZNUmxVYUQF6C7GLBA/exec' }}
         run: |
           if [ -z "$APPS_SCRIPT_URL" ]; then
-            echo "::error::Falta la variable VITE_APPS_SCRIPT_URL del repositorio. El despliegue remoto nunca debe usar el modo local."
+            echo "::error::Falta la variable VITE_APPS_SCRIPT_URL del repositorio."
             exit 1
           fi
 
@@ -54,9 +54,10 @@ jobs:
       - name: Compilar la aplicación remota
         env:
           VITE_DATA_PROVIDER: google-sheets
+          VITE_TEAM_NAME: ${{ vars.VITE_TEAM_NAME || 'Atlético Zabal Linense · Juvenil A' }}
           VITE_APPS_SCRIPT_URL: ${{ vars.VITE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxd14RX1ewTQtsSaK01aZzJI9KHJ5MpiYwAwjxe4jsiX7EuY1c7jZNUmxVYUQF6C7GLBA/exec' }}
-          VITE_PUBLIC_URL: ${{ vars.VITE_PUBLIC_URL || 'https://2whp4khjjp-bot.github.io/zabal-performance/' }}
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/zabal-performance/' }}
+          VITE_PUBLIC_URL: ${{ vars.VITE_PUBLIC_URL || 'https://juvenila.atleticozabal.com/' }}
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/' }}
         run: pnpm build
 
       - name: Preparar archivos de publicación
